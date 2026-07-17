@@ -39,7 +39,7 @@ export default async function EditProductPage({ params }: { params: { id: string
             shippingFee: product.shippingFee.toString(),
             discount: product.discount.toString(),
             availability: product.availability,
-            estimatedArrival: product.estimatedArrival.toISOString().slice(0, 10), Replace it with: estimatedArrival: product.estimatedArrival ? product.estimatedArrival.toISOString().slice(0, 10) : "",
+            estimatedArrival: product.estimatedArrival ? product.estimatedArrival.toISOString().slice(0, 10) : "",
             isBestSeller: product.isBestSeller,
             isNewArrival: product.isNewArrival,
             isLimitedEdition: product.isLimitedEdition,
