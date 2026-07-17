@@ -1,0 +1,48 @@
+{
+  "name": "japan-pasabuy-ph",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:push": "prisma migrate dev --name init",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.9.0",
+    "@prisma/client": "5.17.0",
+    "@supabase/supabase-js": "^2.110.7",
+    "framer-motion": "11.3.19",
+    "lucide-react": "0.400.0",
+    "next": "^16.2.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.13",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.40",
+    "prisma": "5.17.0",
+    "tailwindcss": "3.4.7",
+    "tsx": "^4.23.1",
+    "typescript": "5.5.4"
+  },
+  "allowScripts": {
+    "@clerk/shared@3.47.8": true,
+    "@prisma/client@5.17.0": true,
+    "@prisma/engines@5.17.0": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "prisma@5.17.0": true,
+    "sharp@0.34.5": true
+  }
+}

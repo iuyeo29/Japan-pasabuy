@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: #c81e3a;
+  color: #fafaf8;
+}
+
+:focus-visible {
+  outline: 2px solid #c81e3a;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Signature element: the hanko (seal stamp) mark used across badges,
+   status confirmations, and the hero. A rotated double-ring circle
+   with the product's kana, echoing the personal, hand-stamped
+   authenticity of a pasabuy purchase. */
+.hanko {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  transform: rotate(-8deg);
+}
+.hanko::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  opacity: 0.5;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}

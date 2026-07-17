@@ -1,0 +1,450 @@
+// ============================================================
+// Japan Pasabuy PH — Prisma Schema
+// PostgreSQL + Prisma ORM
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  LIMITED_STOCK
+  PREORDER
+  SOLD_OUT
+}
+
+enum OrderStatus {
+  ORDER_SUBMITTED
+  PENDING_PAYMENT_VERIFICATION
+  PAYMENT_VERIFIED
+  PAYMENT_REJECTED
+  WAITING_FOR_JAPAN_TRIP
+  PURCHASED_IN_JAPAN
+  PACKED
+  SHIPPED
+  IN_TRANSIT
+  ARRIVED_IN_PHILIPPINES
+  READY_FOR_PICKUP
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  GCASH
+  MAYA
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER_SUBMITTED
+  PAYMENT_APPROVED
+  PAYMENT_REJECTED
+  ITEM_PURCHASED
+  SHIPMENT_UPDATE
+  READY_FOR_PICKUP
+  DELIVERED
+  GENERIC
+}
+
+// ------------------------------------------------------------
+// IDENTITY & ACCESS
+// ------------------------------------------------------------
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  fullName    String
+  phone       String?
+  role        UserRole @default(CUSTOMER)
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  addresses     Address[]
+  orders        Order[]
+  cart          Cart?
+  wishlist      Wishlist?
+  reviews       ProductReview[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  label      String   // "Home", "Office", etc.
+  recipient  String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  province   String
+  postalCode String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  orders Order[]
+}
+
+// ------------------------------------------------------------
+// PLATFORM / MULTI-BUSINESS-UNIT CORE
+// ------------------------------------------------------------
+
+model BusinessUnit {
+  id          String   @id @default(cuid())
+  slug        String   @unique // "pasabuy", "photobook", "gifts", "3d-printing"
+  name        String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  categories Category[]
+  products   Product[]
+  trips      Trip[]
+}
+
+model Category {
+  id             String   @id @default(cuid())
+  businessUnitId String
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  parentId       String?
+  parent         Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children       Category[] @relation("CategoryToCategory")
+  name           String
+  slug           String   @unique
+  createdAt      DateTime @default(now())
+
+  products Product[]
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+
+  products Product[]
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  products ProductTag[]
+}
+
+// ------------------------------------------------------------
+// JAPAN TRIP MANAGEMENT
+// ------------------------------------------------------------
+
+model Trip {
+  id               String   @id @default(cuid())
+  businessUnitId   String
+  businessUnit     BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  name             String   // "August 2026 Osaka Trip"
+  shoppingDeadline DateTime
+  departureDate    DateTime
+  arrivalDate      DateTime
+  maxOrders        Int?
+  slotsRemaining   Int?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  products Product[]
+  orders   Order[]
+}
+
+// ------------------------------------------------------------
+// CATALOG
+// ------------------------------------------------------------
+
+model Product {
+  id                 String   @id @default(cuid())
+  businessUnitId     String
+  businessUnit       BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  categoryId         String
+  category           Category @relation(fields: [categoryId], references: [id])
+  brandId            String?
+  brand              Brand?   @relation(fields: [brandId], references: [id])
+  tripId             String?
+  trip               Trip?    @relation(fields: [tripId], references: [id])
+
+  sku                String   @unique
+  name               String
+  japaneseName       String?
+  slug               String   @unique
+  description        String
+  ingredients        String?  // food/cosmetics
+  weightGrams        Int?
+  dimensions         String?  // "10x5x3 cm"
+
+  // Pricing formula inputs
+  japanPriceJPY      Decimal
+  exchangeRate       Decimal
+  serviceFee         Decimal
+  shippingFee        Decimal
+  discount           Decimal  @default(0)
+  finalPricePHP      Decimal  // computed & stored at save time
+
+  availability       ProductAvailability @default(AVAILABLE)
+  estimatedArrival   DateTime?
+  isBestSeller       Boolean  @default(false)
+  isNewArrival       Boolean  @default(false)
+  isLimitedEdition   Boolean  @default(false)
+  isFeatured         Boolean  @default(false)
+
+  archivedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  images        ProductImage[]
+  tags          ProductTag[]
+  reviews       ProductReview[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  wishlistItems WishlistItem[]
+
+  @@index([categoryId])
+  @@index([businessUnitId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  url       String
+  altText   String?
+  position  Int     @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id])
+  tag       Tag     @relation(fields: [tagId], references: [id])
+
+  @@id([productId, tagId])
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int      // 1-5
+  comment   String?
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  images ReviewImage[]
+}
+
+model ReviewImage {
+  id       String        @id @default(cuid())
+  reviewId String
+  review   ProductReview @relation(fields: [reviewId], references: [id])
+  url      String
+}
+
+// ------------------------------------------------------------
+// CART & WISHLIST
+// ------------------------------------------------------------
+
+model Cart {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  items CartItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  addedAt   DateTime @default(now())
+
+  @@unique([cartId, productId])
+}
+
+model Wishlist {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  items WishlistItem[]
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  addedAt    DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+// ------------------------------------------------------------
+// ORDERS
+// ------------------------------------------------------------
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique // human-readable, e.g. JP-2026-00001
+
+  // userId/addressId are optional for now because Clerk auth isn't wired
+  // up yet — checkout currently runs as guest checkout using the fields
+  // below. Once auth is added, start populating userId/addressId and
+  // these guest fields become the fallback for orders placed before then.
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  addressId     String?
+  address       Address?    @relation(fields: [addressId], references: [id])
+  guestName     String?
+  guestEmail    String?
+  guestPhone    String?
+  guestAddress  String?
+
+  tripId        String?
+  trip          Trip?       @relation(fields: [tripId], references: [id])
+
+  currentStatus OrderStatus @default(ORDER_SUBMITTED)
+  subtotal      Decimal
+  totalAmount   Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items         OrderItem[]
+  statusEvents  OrderStatusEvent[]
+  payments      Payment[]
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id])
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  quantity     Int
+  unitPricePHP Decimal // price locked in at time of order
+}
+
+model OrderStatusEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+}
+
+// ------------------------------------------------------------
+// PAYMENTS
+// ------------------------------------------------------------
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id])
+  method          PaymentMethod
+  referenceNumber String
+  amountPaid      Decimal
+  paidAt          DateTime
+  proofFileUrl    String
+  uploadedIp      String?
+  status          PaymentStatus @default(SUBMITTED)
+  rejectionNote   String?
+  reviewedBy      String?       // admin userId
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@unique([orderId, referenceNumber])
+}
+
+// ------------------------------------------------------------
+// NOTIFICATIONS
+// ------------------------------------------------------------
+
+model Notification {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean           @default(false)
+  createdAt DateTime          @default(now())
+}
+
+// ------------------------------------------------------------
+// CMS
+// ------------------------------------------------------------
+
+model CMSPage {
+  id        String   @id @default(cuid())
+  slug      String   @unique // "about", "faq", "privacy-policy", "terms", "contact"
+  title     String
+  content   String   // rich text / JSON blocks
+  metaTitle String?
+  metaDesc  String?
+  updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------------
+// AUDIT & SETTINGS
+// ------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // "PRODUCT_CREATED", "PAYMENT_APPROVED", etc.
+  entity    String   // table name
+  entityId  String
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  id                 String   @id @default(cuid())
+  key                String   @unique // "default_exchange_rate", "default_service_fee_pct", etc.
+  value               String
+  updatedAt          DateTime @updatedAt
+}
